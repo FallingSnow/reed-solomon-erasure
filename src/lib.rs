@@ -9,6 +9,7 @@
 //! the missing data.
 #![allow(dead_code)]
 #![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(feature = "rust-simd", feature(portable_simd))]
 
 #[cfg(test)]
 #[macro_use]
@@ -31,6 +32,9 @@ mod macros;
 mod core;
 mod errors;
 mod matrix;
+
+#[cfg(feature = "rust-simd")]
+pub mod simd;
 
 #[cfg(test)]
 mod tests;

@@ -6,6 +6,7 @@ use rand::distributions::{Distribution, Standard};
 use rand::rngs::SmallRng;
 use rand::SeedableRng;
 use reed_solomon_erasure::galois_8::ReedSolomon;
+use pprof::criterion::{Output, PProfProfiler};
 
 type Shards = Vec<Vec<u8>>;
 
@@ -39,6 +40,9 @@ fn rs_encode_benchmark(
     parity_shards: usize,
 ) {
     let size = block_size * data_shards;
+
+    #[cfg(feature = "rust-simd")]
+    reed_solomon_erasure::simd::set_instruction_set(None);
 
     group.throughput(criterion::Throughput::Bytes(size.try_into().unwrap()));
 
@@ -189,5 +193,9 @@ fn reconstruct_none(c: &mut Criterion) {
     }
 }
 
-criterion_group!(benches, encode, reconstruct_one, reconstruct_all, reconstruct_none);
+criterion_group! {
+    name = benches;
+    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    targets = encode
+}
 criterion_main!(benches);

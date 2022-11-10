@@ -111,6 +111,8 @@ Versions `>= 4.0.0` have not been benchmarked thoroughly yet
 ## Benchmarking
 You can run benchmarks via `cargo bench`. To enable simd acceleration during benchmarks use `cargo bench --features simd-accel`.
 
+Keep in mind that data allocation time is not included in benchmarks. This *can* result in apparent speeds faster than ram. 
+
 ## Changelog
 [Changelog](CHANGELOG.md)
 
@@ -134,6 +136,7 @@ He is the original author of the files stored in `wasm` folder. The files may ha
 
 #### AVX512 support
 Many thanks to [@sakridge](https://github.com/sakridge) for adding support for AVX512 (see [PR #69](https://github.com/darrenldl/reed-solomon-erasure/pull/69))
+To enable AVX512 build with the environmental variable `RUST_REED_SOLOMON_ERASURE_ARCH` set to `native` on a AVX512 enabled system.
 
 #### build.rs improvements
 Many thanks to [@ryoqun](https://github.com/ryoqun) for improving the usability of the library in the context of cross-compilation (see [PR #75](https://github.com/darrenldl/reed-solomon-erasure/pull/75))

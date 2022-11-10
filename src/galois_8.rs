@@ -289,17 +289,23 @@ extern "C" {
     not(any(target_os = "android", target_os = "ios"))
 ))]
 pub fn mul_slice(c: u8, input: &[u8], out: &mut [u8]) {
-    let low: *const u8 = &MUL_TABLE_LOW[c as usize][0];
-    let high: *const u8 = &MUL_TABLE_HIGH[c as usize][0];
+    let low = &MUL_TABLE_LOW[c as usize];
+    let high = &MUL_TABLE_HIGH[c as usize];
 
     assert_eq!(input.len(), out.len());
 
-    let input_ptr: *const u8 = &input[0];
-    let out_ptr: *mut u8 = &mut out[0];
-    let size: libc::size_t = input.len();
+    #[cfg(feature = "rust-simd")]
+    let bytes_done = unsafe { crate::simd::reedsolomon_gal_mul(low, high, input, out, false) };
 
-    let bytes_done: usize =
-        unsafe { reedsolomon_gal_mul(low, high, input_ptr, out_ptr, size) as usize };
+    #[cfg(not(feature = "rust-simd"))]
+    let bytes_done = {
+        let low: *const u8 = &(*low)[0];
+        let high: *const u8 = &(*high)[0];
+        let input_ptr: *const u8 = &input[0];
+        let out_ptr: *mut u8 = &mut out[0];
+        let size: libc::size_t = input.len();
+        unsafe { reedsolomon_gal_mul(low, high, input_ptr, out_ptr, size) as usize }
+    };
 
     mul_slice_pure_rust(c, &input[bytes_done..], &mut out[bytes_done..]);
 }
@@ -311,17 +317,23 @@ pub fn mul_slice(c: u8, input: &[u8], out: &mut [u8]) {
     not(any(target_os = "android", target_os = "ios"))
 ))]
 pub fn mul_slice_xor(c: u8, input: &[u8], out: &mut [u8]) {
-    let low: *const u8 = &MUL_TABLE_LOW[c as usize][0];
-    let high: *const u8 = &MUL_TABLE_HIGH[c as usize][0];
+    let low = &MUL_TABLE_LOW[c as usize];
+    let high = &MUL_TABLE_HIGH[c as usize];
 
     assert_eq!(input.len(), out.len());
 
-    let input_ptr: *const u8 = &input[0];
-    let out_ptr: *mut u8 = &mut out[0];
-    let size: libc::size_t = input.len();
+    #[cfg(feature = "rust-simd")]
+    let bytes_done = unsafe { crate::simd::reedsolomon_gal_mul(low, high, input, out, true) };
 
-    let bytes_done: usize =
-        unsafe { reedsolomon_gal_mul_xor(low, high, input_ptr, out_ptr, size) as usize };
+    #[cfg(not(feature = "rust-simd"))]
+    let bytes_done = {
+        let low: *const u8 = &(*low)[0];
+        let high: *const u8 = &(*high)[0];
+        let input_ptr: *const u8 = &input[0];
+        let out_ptr: *mut u8 = &mut out[0];
+        let size: libc::size_t = input.len();
+        unsafe { reedsolomon_gal_mul_xor(low, high, input_ptr, out_ptr, size) as usize }
+    };
 
     mul_slice_xor_pure_rust(c, &input[bytes_done..], &mut out[bytes_done..]);
 }
@@ -497,11 +509,11 @@ mod tests {
             0x23, 0x3a, 0x75, 0x6c, 0x47,
         ];
         for i in 0..input.len() {
-            assert_eq!(expect[i], output1[i]);
+            assert_eq!(expect[i], output1[i], "index {} does not match", i);
         }
         mul_slice(25, &input, &mut output2);
         for i in 0..input.len() {
-            assert_eq!(expect[i], output2[i]);
+            assert_eq!(expect[i], output2[i], "index {} does not match", i);
         }
 
         let expect_xor = [
@@ -511,11 +523,11 @@ mod tests {
         ];
         mul_slice_xor(52, &input, &mut output1);
         for i in 0..input.len() {
-            assert_eq!(expect_xor[i], output1[i]);
+            assert_eq!(expect_xor[i], output1[i], "index {} does not match", i);
         }
         mul_slice_xor(52, &input, &mut output2);
         for i in 0..input.len() {
-            assert_eq!(expect_xor[i], output2[i]);
+            assert_eq!(expect_xor[i], output2[i], "index {} does not match", i);
         }
 
         let expect = [
@@ -525,11 +537,11 @@ mod tests {
         ];
         mul_slice(177, &input, &mut output1);
         for i in 0..input.len() {
-            assert_eq!(expect[i], output1[i]);
+            assert_eq!(expect[i], output1[i], "index {} does not match", i);
         }
         mul_slice(177, &input, &mut output2);
         for i in 0..input.len() {
-            assert_eq!(expect[i], output2[i]);
+            assert_eq!(expect[i], output2[i], "index {} does not match", i);
         }
 
         let expect_xor = [
@@ -539,11 +551,11 @@ mod tests {
         ];
         mul_slice_xor(117, &input, &mut output1);
         for i in 0..input.len() {
-            assert_eq!(expect_xor[i], output1[i]);
+            assert_eq!(expect_xor[i], output1[i], "index {} does not match", i);
         }
         mul_slice_xor(117, &input, &mut output2);
         for i in 0..input.len() {
-            assert_eq!(expect_xor[i], output2[i]);
+            assert_eq!(expect_xor[i], output2[i], "index {} does not match", i);
         }
 
         assert_eq!(exp(2, 2), 4);
@@ -565,7 +577,7 @@ mod tests {
             }
             slice_xor(&input, &mut output);
             for i in 0..expect.len() {
-                assert_eq!(expect[i], output[i]);
+                assert_eq!(expect[i], output[i], "index {} does not match", i);
             }
             fill_random(&mut output);
             for i in 0..expect.len() {
@@ -573,7 +585,7 @@ mod tests {
             }
             slice_xor(&input, &mut output);
             for i in 0..expect.len() {
-                assert_eq!(expect[i], output[i]);
+                assert_eq!(expect[i], output[i], "index {} does not match", i);
             }
         }
     }
